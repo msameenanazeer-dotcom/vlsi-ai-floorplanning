@@ -13,7 +13,9 @@ class Floorplanner:
 
         for _, row in self.blocks.iterrows():
 
-            self.block_data[row["block"]] = {
+            block = str(row["block"]).strip()
+
+            self.block_data[block] = {
                 "width": float(row["width"]),
                 "height": float(row["height"])
             }
@@ -40,11 +42,7 @@ class Floorplanner:
             placement[block] = (x, y)
 
             x += width
-
-            row_height = max(
-                row_height,
-                height
-            )
+            row_height = max(row_height, height)
 
         return placement
 
@@ -58,15 +56,8 @@ class Floorplanner:
             width = self.block_data[block]["width"]
             height = self.block_data[block]["height"]
 
-            max_x = max(
-                max_x,
-                x + width
-            )
-
-            max_y = max(
-                max_y,
-                y + height
-            )
+            max_x = max(max_x, x + width)
+            max_y = max(max_y, y + height)
 
         return max_x * max_y
 
@@ -76,12 +67,17 @@ class Floorplanner:
 
         for _, row in self.nets.iterrows():
 
-            names = row["blocks"].split("-")
+            blocks = str(row["blocks"]).strip().split("-")
 
             xs = []
             ys = []
 
-            for block in names:
+            for block in blocks:
+
+                block = block.strip()
+
+                if block not in placement:
+                    continue
 
                 x, y = placement[block]
 
@@ -91,7 +87,7 @@ class Floorplanner:
                 xs.append(x + width / 2)
                 ys.append(y + height / 2)
 
-            if xs:
+            if len(xs) >= 2:
 
                 hpwl = (
                     max(xs) - min(xs)
@@ -106,14 +102,9 @@ class Floorplanner:
 
         area = self.calculate_area(placement)
 
-        wirelength = self.calculate_wirelength(
-            placement
-        )
+        wirelength = self.calculate_wirelength(placement)
 
-        return (
-            0.5 * area +
-            0.5 * wirelength
-        )
+        return 0.5 * area + 0.5 * wirelength
 
     def optimize(self, iterations=2000):
 
@@ -121,27 +112,23 @@ class Floorplanner:
 
         best_score = self.objective(best)
 
-        blocks = list(
-            self.block_data.keys()
-        )
+        blocks = list(self.block_data.keys())
+
+        if len(blocks) < 2:
+            return best, best_score
 
         for _ in range(iterations):
 
             candidate = best.copy()
 
-            b1, b2 = random.sample(
-                blocks,
-                2
-            )
+            b1, b2 = random.sample(blocks, 2)
 
             candidate[b1], candidate[b2] = (
                 candidate[b2],
                 candidate[b1]
             )
 
-            score = self.objective(
-                candidate
-            )
+            score = self.objective(candidate)
 
             if score < best_score:
 
